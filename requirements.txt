@@ -1,0 +1,8 @@
+﻿twitchAPI
+pandas
+requests
+google-api-python-client
+pytrends
+tweepy
+gspread
+oauth2client
