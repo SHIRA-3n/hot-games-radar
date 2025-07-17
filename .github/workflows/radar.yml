@@ -1,0 +1,34 @@
+name: Hot-Games-Radar
+on:
+  workflow_dispatch:        # 手動ボタンでも起動
+  schedule:
+    - cron: "*/30 * * * *"  # 30 分ごと（UTC）
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    env:
+      STEAM_API_KEY:      ${{ secrets.STEAM_API_KEY }}
+      DISCORD_WEBHOOK:    ${{ secrets.DISCORD_WEBHOOK_URL_3D }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+          pip install python-dotenv   # .env 読み込み用（ローカルと同じ）
+
+      - name: Run radar
+        run: |
+          python -m radar.core > output.txt
+          echo "OUTPUT ↓"; cat output.txt
+
+      - name: Send to Discord
+        run: |
+          jq -Rs '{"content": .}' < output.txt > payload.json
+          curl -H "Content-Type: application/json" -d @payload.json $DISCORD_WEBHOOK
