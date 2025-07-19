@@ -10,7 +10,8 @@ import requests
 from twitchAPI.twitch import Twitch
 
 # 作成した全ての分析モジュール（センサー）をインポートします
-from .signals import steam, twitch_data, twitter, slot_fit, competition # 仮のモジュール名
+# あなたが持っている実際のファイル名だけをインポートします
+from .signals import steam_ccu, slot_fit, competition 
 
 # ---------------------------------
 # 設定ファイルの読み込み
@@ -57,9 +58,7 @@ def main():
     
     # 利用する分析モジュール（センサー）のリスト
     ENABLED_SIGNALS = [
-        # steam,       # steam.py が完成したらコメントを外す
-        # twitch_data, # twitch_data.py が完成したらコメントを外す
-        # twitter,     # twitter.py が完成したらコメントを外す
+        steam_ccu,  # steam.pyではなく、steam_ccu.pyなのでこちらが正しい
         slot_fit,
         competition,
     ]
