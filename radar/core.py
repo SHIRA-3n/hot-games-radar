@@ -16,7 +16,7 @@ def load_config():
     with open('config.yaml', 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
-def main():
+async def main():
     print("🚀 Hot Games Radar PRO - 起動します...")
     cfg = load_config()
 
@@ -37,7 +37,7 @@ def main():
     print("📡 Twitchから注目ゲームのリストを取得中...")
     try:
         # Twitchの上位ゲームを取得 (Just Chattingなどは除外)
-        games_to_analyze = [g for g in twitch_api.get_top_games(first=20) if g.name != 'Just Chatting']
+        games_to_analyze = [g async for g in twitch_api.get_top_games(first=20) if g.name != 'Just Chatting']
         print(f"✅ {len(games_to_analyze)}件のゲームを分析対象とします。")
     except Exception as e:
         print(f"❌ ゲームリストの取得に失敗しました: {e}"); return
