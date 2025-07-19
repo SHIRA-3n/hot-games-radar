@@ -1,7 +1,7 @@
 # ----------------------------------------------------------------
 # 分析設定
 # ----------------------------------------------------------------
-analysis_target_count: 200        # Twitchから取得・分析するゲームの件数
+analysis_target_count: 1000        # Twitchから取得・分析するゲームの件数
 notification_score_threshold: 10  # このスコアを超えたゲームだけを通知する
 # ----------------------------------------------------------------
 # あなたのチャンネル情報（競合分析に利用）
@@ -24,16 +24,16 @@ stream_slots:
 # (以下、weights, penaltiesセクションは基本的にこのままでOK)
 weights:
   viewers_per_ch: 2
-  drops: 20
+  drops: 10
   free: 15
-  steam_ccu_ratio: 8
+  steam_ccu_ratio: 10
   trends_jp_spike: 6
   twitter_jp_spike: 6
-  slot_fit: 15
-  blue_ocean_bonus: 30
-  upcoming_event_score: 50 # 未来のイベントのスコアを50倍して最終スコアに加算する
+  slot_fit: 20
+  blue_ocean_bonus: 25
+  upcoming_event_score: 20 # 未来のイベントのスコアを50倍して最終スコアに加算する
   drops: 20                  # Twitch Dropsが有効な場合の加点
-  steam_news_update: 30      # Steamニュースにアプデ情報があった場合の加点
+  steam_news_update: 15      # Steamニュースにアプデ情報があった場合の加点
   
 
 penalties:

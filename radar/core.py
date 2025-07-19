@@ -129,21 +129,19 @@ async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, signal
     return game, None # 現状はエラーを詳細に追跡しないシンプルな形に戻す
 
 
+# 【最終確定版テンプレート】この内容で send_results_to_discord 関数を全文上書きしてください
+
 def send_results_to_discord(games, errored_games, cfg):
     webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_3D')
     if not webhook_url:
         print("⚠️ Discord Webhook URLが設定されていません。"); return
 
-    # --- デザインの最終調整 ---
-    
-    # 1. ひとつの大きなEmbed（カード）を作成。タイトルをシンプルに。
     embed = {
         "title": "📈 Hot Games Radar - 分析レポート",
         "color": 5814783,
         "fields": []
     }
 
-    # 2. スコアの高いゲームの情報をフィールドとして追加
     score_threshold = cfg.get('notification_score_threshold', 10)
     game_count = cfg.get('notification_game_count', 10)
     
@@ -152,34 +150,40 @@ def send_results_to_discord(games, errored_games, cfg):
         if notified_count >= game_count: break
         if game['total_score'] >= score_threshold:
             
-            # --- ★★★【最終デザイン】★★★
-            # 1. タイトルは、リンク無しのシンプルなテキストにする
-            field_name = f"{'🥇🥈🥉'[notified_count] if notified_count < 3 else '🔹'} {notified_count + 1}位: {game['name']} (スコア: {game['total_score']:.0f})"
+            # --- ★★★【デザイン刷新の心臓部】★★★
+            
+            # 1. タイトル行を組み立てる (ゲーム名 + スコア + 主要タグ)
+            #    表示するタグを2つまでに絞るなど、調整も可能
+            tags_for_title = " ".join([f"`{flag}`" for flag in game['flags'][:2]])
+            field_name = f"{'🥇🥈🥉'[notified_count] if notified_count < 3 else '🔹'} {notified_count + 1}位: {game['name']} (スコア: {game['total_score']:.0f}) {tags_for_title}"
 
-            # 2. 本文（value）を組み立てる
-            tags = " ".join([f"`{flag}`" for flag in game['flags']])
-            steam_link = ""
+            # 2. 本文行（リンク集）を組み立てる
+            links = []
+            # Steamリンク
             if 'steam_appid' in game:
-                # 本文の中に、クリック可能な「テキストリンク」を追加する
-                steam_link = f"\n**[Steamストアページへ]({f'https://store.steampowered.com/app/{game["steam_appid"]}'})**"
-
-            field_value = (tags or "注目ポイントあり") + steam_link
+                links.append(f"**[Steam]({f'https://store.steampowered.com/app/{game["steam_appid"]}'})**")
+            # Twitchリンク
+            # ゲーム名をURLエンコードして、正しいTwitchカテゴリURLを作成
+            twitch_category_name = requests.utils.quote(game['name'])
+            links.append(f"**[Twitch]({f'https://www.twitch.tv/directory/category/{twitch_category_name}'})**")
+            # Googleトレンドリンク
+            google_trend_query = requests.utils.quote(f"{game['name']} ゲーム")
+            links.append(f"**[Googleトレンド]({f'https://trends.google.com/trends/explore?q={google_trend_query}&geo=JP'})**")
+            
+            # リンクを " | " で連結
+            field_value = " | ".join(links)
             
             embed["fields"].append({
                 "name": field_name,
-                "value": field_value
+                "value": f"🔗 {field_value}" # 先頭にリンクアイコンを追加
             })
             notified_count += 1
 
-    # 3. エラーが出たゲームの情報の追加（変更なし）
+    # エラー報告部分（変更なし）
     if cfg.get('notification_include_errors', True) and errored_games:
         error_list_str = "\n".join([f"- {g['name']}" for g in errored_games[:5]])
-        embed["fields"].append({
-            "name": "⚠️ 一部センサーでエラーが検出されたゲーム",
-            "value": error_list_str
-        })
+        embed["fields"].append({ "name": "⚠️ 一部センサーでエラーが検出されたゲーム", "value": error_list_str })
 
-    # 4. 通知する内容がなければ送信しない（変更なし）
     if not embed["fields"]:
         print("✅ 通知対象の注目ゲームはありませんでした。"); return
 
