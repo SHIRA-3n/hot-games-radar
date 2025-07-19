@@ -64,78 +64,115 @@ async def main():
     
     ENABLED_SIGNALS = [steam_ccu, slot_fit, competition]
 
-    # asyncio.gatherを使って、全ゲームのスコアリングを並行して効率的に行う
-    tasks = []
-    for game_data in games_to_analyze:
-        tasks.append(analyze_single_game(game_data, cfg, twitch_api, steam_app_list, ENABLED_SIGNALS))
-    
-    scored_games_results = await asyncio.gather(*tasks)
-    # Noneが返ってきたタスクを除外
-    scored_games = [game for game in scored_games_results if game is not None]
+    tasks = [analyze_single_game(game_data, cfg, twitch_api, steam_app_list, ENABLED_SIGNALS) for game_data in games_to_analyze]
+    results = await asyncio.gather(*tasks)
+
+    scored_games = []
+    errored_games = []
+    for game, error in results:
+        if error:
+            # エラーがあったゲームをリストに追加
+            errored_games.append({'name': game['name'], 'error': error})
+        else:
+            # 成功したゲームをリストに追加
+            scored_games.append(game)
 
     scored_games.sort(key=lambda x: x['total_score'], reverse=True)
     print("✅ スコア計算完了！")
 
     print("📨 結果をDiscordに送信中...")
-    send_results_to_discord(scored_games, cfg)
+    # 通知担当に、成功リストと失敗リストの両方を渡す
+    send_results_to_discord(scored_games, errored_games, cfg)
     print("🎉 全ての処理が正常に完了しました！")
 
 
 async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, signal_modules):
-    """１つのゲームを分析するための非同期関数"""
+    """１つのゲームを分析し、成功なら結果を、失敗ならエラーメッセージを返す"""
     game = {'id': game_data.id, 'name': game_data.name}
-    
+    error_messages = []
+
     appid = utils.get_steam_appid(game['name'], steam_app_list)
     if appid:
         game['steam_appid'] = appid
 
     game_scores, game_flags = {}, []
     
-    for signal_module in signal_modules:
-        try:
-            # 各分析モジュールも非同期で呼び出す
-            result = await signal_module.score(game=game, cfg=cfg, twitch_api=twitch_api)
-            if result:
-                game_scores.update(result)
-                if 'source_hit_flags' in result:
-                    game_flags.extend(result.pop('source_hit_flags'))
-        except Exception as e:
-            # 実行ログがエラーで埋まらないように、ここでは警告をprintしない
-            pass
+    # asyncio.gatherを使って、各センサーの処理を並行して行う
+    tasks = [module.score(game=game, cfg=cfg, twitch_api=twitch_api) for module in signal_modules]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for res in results:
+        if isinstance(res, Exception):
+            # もしセンサーがエラーを返したら、エラーメッセージを記録
+            error_messages.append(str(res))
+        elif isinstance(res, dict) and res:
+            game_scores.update(res)
+            if 'source_hit_flags' in res:
+                game_flags.extend(result.pop('source_hit_flags'))
 
     game['total_score'] = sum(v for k, v in game_scores.items() if isinstance(v, (int, float)))
     game['flags'] = list(set(game_flags))
-    return game
+    
+    # 最終的なエラーの有無を返す
+    error_summary = ", ".join(error_messages) if error_messages else None
+    return game, error_summary
 
 
-def send_results_to_discord(games, cfg):
-    # (この関数は変更なし)
+def send_results_to_discord(games, errored_games, cfg):
     webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_3D')
     if not webhook_url:
         print("⚠️ Discord Webhook URLが設定されていません。"); return
 
-    embed = {"content": f"**Hot Games Radar PRO** - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC", "embeds": []}
+    # --- デザインの最終調整 ---
     
-    # スコアが一定以上のゲームだけを通知する（金の卵フィルター）
+    # 1. ひとつの大きなEmbed（カード）を作成。タイトルをシンプルに。
+    embed = {
+        "title": "📈 Hot Games Radar - 分析レポート",
+        "color": 5814783,
+        "fields": []
+    }
+
+    # 2. スコアの高いゲームの情報をフィールドとして追加
     score_threshold = cfg.get('notification_score_threshold', 10)
+    game_count = cfg.get('notification_game_count', 10)
     
     notified_count = 0
     for game in games:
-        if notified_count >= 5: break # 最大5件まで通知
+        if notified_count >= game_count: break
         if game['total_score'] >= score_threshold:
-            rank = notified_count + 1
-            rank_emoji = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else "🔹"
-            description = " ".join([f"`{flag}`" for flag in game['flags']])
-            embed_field = {"title": f"{rank_emoji} {rank}位: {game['name']} (スコア: {game['total_score']:.0f})", "description": description or "注目ポイントあり", "color": 5814783}
-            embed["embeds"].append(embed_field)
+            
+            # --- ★★★【アップグレード①】タイトル部分の組み立て★★★ ---
+            game_title = game['name']
+            if 'steam_appid' in game:
+                # [テキスト](URL) というMarkdown形式で、タイトル自体をリンクにする
+                game_title = f"[{game['name']}]({f'https://store.steampowered.com/app/{game["steam_appid"]}'})"
+
+            # --- ★★★【アップグレード②】値（value）部分の組み立て★★★ ---
+            # リンクをなくし、タグだけをシンプルに表示
+            tags = " ".join([f"`{flag}`" for flag in game['flags']])
+            
+            embed["fields"].append({
+                "name": f"{'🥇🥈🥉'[notified_count] if notified_count < 3 else '🔹'} {notified_count + 1}位: {game_title} (スコア: {game['total_score']:.0f})",
+                "value": tags or "注目ポイントあり" # タグがなければ「注目ポイントあり」と表示
+            })
             notified_count += 1
-    
-    if not embed["embeds"]:
+
+    # 3. エラーが出たゲームの情報の追加（変更なし）
+    if cfg.get('notification_include_errors', True) and errored_games:
+        error_list_str = "\n".join([f"- {g['name']}" for g in errored_games[:5]])
+        embed["fields"].append({
+            "name": "⚠️ 一部センサーでエラーが検出されたゲーム",
+            "value": error_list_str
+        })
+
+    # 4. 通知する内容がなければ送信しない（変更なし）
+    if not embed["fields"]:
         print("✅ 通知対象の注目ゲームはありませんでした。"); return
+
     try:
-        response = requests.post(webhook_url, json=embed)
+        response = requests.post(webhook_url, json={"embeds": [embed]})
         response.raise_for_status()
-        print(f"✅ Discordへ{notified_count}件の通知に成功しました。")
+        print(f"✅ Discordへ{notified_count}件の注目ゲームと、{len(errored_games)}件のエラー報告を通知しました。")
     except requests.exceptions.RequestException as e:
         print(f"❌ Discordへの通知に失敗しました: {e}")
 
