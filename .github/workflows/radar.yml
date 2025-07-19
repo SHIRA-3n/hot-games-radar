@@ -1,34 +1,44 @@
-name: Hot-Games-Radar
+# 【最終版テンプレート】この内容を radar.yml に貼り付けてください
+
+name: Hot-Games-Radar-PRO
+
 on:
-  workflow_dispatch:        # 手動ボタンでも起動
+  workflow_dispatch: # 手動ボタンでいつでも起動
   schedule:
-    - cron: "*/30 * * * *"  # 30 分ごと（UTC）
+    - cron: "15,45 * * * *" # 毎時15分と45分に自動実行 (UTC)
 
 jobs:
   radar:
     runs-on: ubuntu-latest
+    
+    # ここで、GitHub Secretsに保管した全ての「鍵」をBotに渡します
     env:
-      STEAM_API_KEY:      ${{ secrets.STEAM_API_KEY }}
-      DISCORD_WEBHOOK:    ${{ secrets.DISCORD_WEBHOOK_URL_3D }}
+      TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+      TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+      STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+      X_BEARER: ${{ secrets.X_BEARER }}
+      DISCORD_WEBHOOK_URL_3D: ${{ secrets.DISCORD_WEBHOOK_URL_3D }}
+      DISCORD_WEBHOOK_URL_7D: ${{ secrets.DISCORD_WEBHOOK_URL_7D }}
+      DISCORD_WEBHOOK_URL_30D: ${{ secrets.DISCORD_WEBHOOK_URL_30D }}
+      GCP_JSON: ${{ secrets.GCP_JSON }}
+      
     steps:
-      - uses: actions/checkout@v4
+      # 1. リポジトリのコードを仮想マシンにコピー
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      # 2. Python環境をセットアップ
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
+          cache: 'pip' # 依存関係をキャッシュして高速化
 
-      - name: Install deps
-        run: |
-          pip install -r requirements.txt
-          pip install python-dotenv   # .env 読み込み用（ローカルと同じ）
+      # 3. 必要なPythonライブラリをインストール
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-      - name: Run radar
-        run: |
-          python -m radar.core > output.txt
-          echo "OUTPUT ↓"; cat output.txt
-
-      - name: Send to Discord
-        run: |
-          jq -Rs '{"content": .}' < output.txt > payload.json
-          curl -H "Content-Type: application/json" -d @payload.json $DISCORD_WEBHOOK
+      # 4. Botのメインプログラムを実行
+      # (run.py や main.py という名前にしていることを想定)
+      - name: Run Radar Bot
+        run: python run.py # または python main.py

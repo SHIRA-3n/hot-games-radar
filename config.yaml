@@ -1,0 +1,44 @@
+# 【最終版テンプレート】この内容をconfig.yamlに貼り付けてください
+
+# ----------------------------------------------------------------
+# あなたのチャンネル情報（競合分析に利用）
+# ----------------------------------------------------------------
+channel_profile:
+  avg_viewers: 10  # ★★★あなたの配信の平均視聴者数をここに記入★★★
+
+# ----------------------------------------------------------------
+# あなたの配信スケジュール（配信時間との一致度評価に利用）
+# ----------------------------------------------------------------
+stream_slots:            
+  mon: ["24-27"]  # ★★★あなたの配信スケジュールに合わせて書き換える★★★
+  tue: ["24-27"]
+  wed: ["24-27"]
+  thu: ["24-27"]
+  fri: ["24-27"]
+  sat: ["24-27"]
+  sun: ["24-27"]
+
+# (以下、weights, penaltiesセクションは基本的にこのままでOK)
+weights:
+  viewers_per_ch: 2
+  drops: 20
+  free: 15
+  steam_ccu_ratio: 8
+  trends_jp_spike: 6
+  twitter_jp_spike: 6
+  slot_fit: 15
+  blue_ocean_bonus: 30
+
+penalties:
+  top_share:    {threshold: 0.6, weight: 80}
+  low_jp_ratio: {threshold: 0.05, weight: 15}
+  competitor_penalty: {threshold: 20, weight: 15}
+
+notify:
+  webhooks:
+    radar_3d:  ${DISCORD_WEBHOOK_URL_3D}
+    radar_7d:  ${DISCORD_WEBHOOK_URL_7D}
+    radar_30d: ${DISCORD_WEBHOOK_URL_30D}
+    
+logging:
+  sheet_id: "1btqoOdZA3pi1yGijPwBdlXwMHywaKI_Mz_3-n5vFbfE"
