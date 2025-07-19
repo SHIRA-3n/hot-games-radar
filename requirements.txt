@@ -6,3 +6,4 @@ pytrends
 tweepy
 gspread
 oauth2client
+PyYAML
