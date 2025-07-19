@@ -18,6 +18,8 @@ def load_config():
     with open('config.yaml', 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
+# 【真の最終確定版】この内容で、あなたの async def main(): 関数を全文上書きしてください
+
 async def main():
     print("🚀 Hot Games Radar PRO - 起動します...")
     cfg = load_config()
@@ -29,17 +31,17 @@ async def main():
     except Exception as e:
         print(f"❌ Twitch APIの初期化または認証に失敗しました: {e}"); return
 
-    # --- ★★★【超重要・効率化！】★★★
     # 最初に1回だけ、全ての「台帳」を読み込んでおく
     utils.update_steam_app_list()
     steam_app_list, events_df = {}, None
     try:
+        # ★★★ ここが欠けていました！ ★★★
         with open(utils.STEAM_APP_LIST_FILE, 'r', encoding='utf-8') as f:
             steam_app_list = json.load(f)
     except FileNotFoundError:
         print("⚠️ Steamアプリリストファイルが見つかりません。")
     try:
-        # 正しい列名を指定して、events.csvを一度だけ読み込む
+        # events.csvを一度だけ読み込む
         events_df = pd.read_csv('events.csv', parse_dates=['start_jst'], encoding='utf-8')
     except Exception as e:
         print(f"⚠️ events.csvの読み込みに失敗しました: {e}")
@@ -47,19 +49,13 @@ async def main():
     print("📡 Twitchから注目ゲームのリストを取得中...")
     games_to_analyze = []
     try:
-        # ★★★【最終確定版のロジック】★★★
         # config.yamlから調査したい件数を取得
         target_count = cfg.get('analysis_target_count', 200)
         
-        # Twitch APIに「1ページ100件で」とリクエストを出す
-        # async forが、自動で次のページを読み込みに行ってくれます
+        # Twitch APIから、指定された件数だけゲームを取得する
         async for game in twitch_api.get_top_games(first=100):
-            # ゲーム以外のカテゴリを除外
             if game.name != 'Just Chatting':
                 games_to_analyze.append(game)
-            
-            # ★★★【最重要ポイント】★★★
-            # リストの件数が目標に達したら、ループを強制的にストップする
             if len(games_to_analyze) >= target_count:
                 break
         
@@ -70,30 +66,30 @@ async def main():
 
     print("⚙️ 各ゲームのスコアを計算中...")
     
-    # ★★★【最後の修正！】★★★
-    # どの専門家を分析に使うか、ここでリストを定義する
+    # どの専門家（センサー）を分析に使うか、ここでリストを定義する
     ENABLED_SIGNALS = [steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news]
     
-    tasks = []
-    for game_data in games_to_analyze:
-        # 専門家には、読み込み済みの台帳データを渡す
-        tasks.append(analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events_df, ENABLED_SIGNALS))
+    # 各ゲームに対する「分析の依頼書」のリストを作成する
+    tasks = [
+        analyze_single_game(
+            game_data, cfg, twitch_api, steam_app_list, events_df, ENABLED_SIGNALS
+        ) 
+        for game_data in games_to_analyze
+    ]
     
-    ENABLED_SIGNALS = [steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news]
-
-    tasks = [analyze_single_game(game_data, cfg, twitch_api, steam_app_list, ENABLED_SIGNALS) for game_data in games_to_analyze]
+    # 全ての「依頼書」を、並行して一斉に実行させる
     results = await asyncio.gather(*tasks)
 
+    # 成功した分析と、エラーが出た分析を仕分ける
     scored_games = []
     errored_games = []
     for game, error in results:
         if error:
-            # エラーがあったゲームをリストに追加
             errored_games.append({'name': game['name'], 'error': error})
         else:
-            # 成功したゲームをリストに追加
             scored_games.append(game)
 
+    # 成功したゲームをスコアの高い順に並び替える
     scored_games.sort(key=lambda x: x['total_score'], reverse=True)
     print("✅ スコア計算完了！")
 
