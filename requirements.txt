@@ -7,3 +7,4 @@ tweepy
 gspread
 oauth2client
 PyYAML
+python-dotenv
