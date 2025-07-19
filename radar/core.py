@@ -152,19 +152,22 @@ def send_results_to_discord(games, errored_games, cfg):
         if notified_count >= game_count: break
         if game['total_score'] >= score_threshold:
             
-            # --- ★★★【アップグレード①】タイトル部分の組み立て★★★ ---
-            game_title = game['name']
-            if 'steam_appid' in game:
-                # [テキスト](URL) というMarkdown形式で、タイトル自体をリンクにする
-                game_title = f"[{game['name']}]({f'https://store.steampowered.com/app/{game["steam_appid"]}'})"
+            # --- ★★★【最終デザイン】★★★
+            # 1. タイトルは、リンク無しのシンプルなテキストにする
+            field_name = f"{'🥇🥈🥉'[notified_count] if notified_count < 3 else '🔹'} {notified_count + 1}位: {game['name']} (スコア: {game['total_score']:.0f})"
 
-            # --- ★★★【アップグレード②】値（value）部分の組み立て★★★ ---
-            # リンクをなくし、タグだけをシンプルに表示
+            # 2. 本文（value）を組み立てる
             tags = " ".join([f"`{flag}`" for flag in game['flags']])
+            steam_link = ""
+            if 'steam_appid' in game:
+                # 本文の中に、クリック可能な「テキストリンク」を追加する
+                steam_link = f"\n**[Steamストアページへ]({f'https://store.steampowered.com/app/{game["steam_appid"]}'})**"
+
+            field_value = (tags or "注目ポイントあり") + steam_link
             
             embed["fields"].append({
-                "name": f"{'🥇🥈🥉'[notified_count] if notified_count < 3 else '🔹'} {notified_count + 1}位: {game_title} (スコア: {game['total_score']:.0f})",
-                "value": tags or "注目ポイントあり" # タグがなければ「注目ポイントあり」と表示
+                "name": field_name,
+                "value": field_value
             })
             notified_count += 1
 

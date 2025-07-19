@@ -15,7 +15,7 @@ def score(game, cfg, horizon, **_):
 
     try:
         # encoding='utf-8' を指定して日本語の文字化けを防ぐ
-        events_df = pd.read_csv(csv_path, parse_dates=['start_jst', 'end_jst'], encoding='utf-8')
+        events_df = pd.read_csv(csv_path, parse_dates=['start_jst'], encoding='utf-8')
     except Exception as e:
         print(f"⚠️ events.csvの読み込みに失敗しました: {e}")
         return {}
