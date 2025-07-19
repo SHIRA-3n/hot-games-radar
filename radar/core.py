@@ -21,9 +21,18 @@ async def main():
     cfg = load_config()
 
     try:
+        # 1. まずTwitch APIのクライアントを作成
         twitch_api = Twitch(os.environ['TWITCH_CLIENT_ID'], os.environ['TWITCH_CLIENT_SECRET'])
+        
+        # ★★★【最後のアップグレード！】★★★
+        # 2. 「アプリとして」の権限を要求して認証する
+        #    []は「特別な権限は不要です」という意味。
+        await twitch_api.authenticate_app([])
+        
+        print("✅ Twitch APIの認証に成功しました。")
     except Exception as e:
-        print(f"❌ Twitch APIの初期化に失敗しました: {e}"); return
+        print(f"❌ Twitch APIの初期化または認証に失敗しました: {e}")
+        return
 
     # ★★★【アップグレード①】SteamのAppIDリストを準備★★★
     utils.update_steam_app_list()
