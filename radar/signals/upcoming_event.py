@@ -1,23 +1,15 @@
-# 【この内容で radar/signals/upcoming_event.py を作成・保存してください】
+# 【最終版テンプレート】この内容で upcoming_event.py を全文上書き
 
 import pandas as pd
 from datetime import datetime
 import pytz
-import os
 
-def score(game, cfg, horizon, **_):
+def score(game, cfg, events_df, **_):
     """
-    events.csvを読み込み、未来のイベントまでの日数に応じてスコアを計算する。
+    司令塔から渡されたイベントデータフレームを元に、スコアを計算する。
     """
-    csv_path = 'events.csv'
-    if not os.path.exists(csv_path):
-        return {} # ファイルがなければ何もしない
-
-    try:
-        # encoding='utf-8' を指定して日本語の文字化けを防ぐ
-        events_df = pd.read_csv(csv_path, parse_dates=['start_jst'], encoding='utf-8')
-    except Exception as e:
-        print(f"⚠️ events.csvの読み込みに失敗しました: {e}")
+    # 司令塔からデータが渡されなければ、何もしない
+    if events_df is None or events_df.empty:
         return {}
 
     # このゲームに関連するイベントを探す

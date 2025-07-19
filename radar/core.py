@@ -28,13 +28,20 @@ async def main():
     except Exception as e:
         print(f"❌ Twitch APIの初期化または認証に失敗しました: {e}"); return
 
+    # --- ★★★【超重要・効率化！】★★★
+    # 最初に1回だけ、全ての「台帳」を読み込んでおく
     utils.update_steam_app_list()
-    steam_app_list = {}
+    steam_app_list, events_df = {}, None
     try:
         with open(utils.STEAM_APP_LIST_FILE, 'r', encoding='utf-8') as f:
             steam_app_list = json.load(f)
     except FileNotFoundError:
         print("⚠️ Steamアプリリストファイルが見つかりません。")
+    try:
+        # 正しい列名を指定して、events.csvを一度だけ読み込む
+        events_df = pd.read_csv('events.csv', parse_dates=['start_jst'], encoding='utf-8')
+    except Exception as e:
+        print(f"⚠️ events.csvの読み込みに失敗しました: {e}")
 
     print("📡 Twitchから注目ゲームのリストを取得中...")
     games_to_analyze = []
@@ -61,7 +68,10 @@ async def main():
         print(f"❌ ゲームリストの取得に失敗しました: {e}"); return
 
     print("⚙️ 各ゲームのスコアを計算中...")
-    scored_games = []
+    tasks = []
+    for game_data in games_to_analyze:
+        # 専門家には、読み込み済みの台帳データを渡す
+        tasks.append(analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events_df, ENABLED_SIGNALS))
     
     ENABLED_SIGNALS = [steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news]
 
@@ -89,7 +99,7 @@ async def main():
 
 # 【最終確定版テンプレート】この内容で analyze_single_game 関数を全文上書きしてください
 
-async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, signal_modules):
+async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events_df, signal_modules):
     """１つのゲームを分析し、成功なら結果を、失敗ならエラーメッセージを返す"""
     # dropsセンサーのために、元のgame_dataオブジェクトも渡す
     game = {'id': game_data.id, 'name': game_data.name, 'game_data': game_data}
@@ -108,7 +118,7 @@ async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, signal
             # 専門家が非同期モードなら 'await' を付けて呼ぶ
             if asyncio.iscoroutinefunction(module.score):
                 # 'horizon'情報は、今はまだ使わないので一旦'3d'で固定（今後の拡張用）
-                result = await module.score(game=game, cfg=cfg, twitch_api=twitch_api, horizon='3d')
+                result = await module.score(game=game, cfg=cfg, twitch_api=twitch_api, horizon='3d', events_df=events_df)
             else:
                 result = module.score(game=game, cfg=cfg, twitch_api=twitch_api, horizon='3d')
 
