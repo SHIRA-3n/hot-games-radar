@@ -31,6 +31,8 @@ weights:
   twitter_jp_spike: 6
   slot_fit: 15
   blue_ocean_bonus: 30
+  upcoming_event_score: 50 # 未来のイベントのスコアを50倍して最終スコアに加算する
+  
 
 penalties:
   top_share:    {threshold: 0.6, weight: 80}

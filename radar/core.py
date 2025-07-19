@@ -7,6 +7,7 @@ import requests
 from datetime import datetime, timezone
 from twitchAPI.twitch import Twitch
 import asyncio # 非同期処理に必要
+from .signals import steam_ccu, slot_fit, competition, upcoming_event
 
 # 作成した全ての分析モジュール（センサー）をインポートします
 from .signals import steam_ccu, slot_fit, competition
@@ -62,7 +63,7 @@ async def main():
     print("⚙️ 各ゲームのスコアを計算中...")
     scored_games = []
     
-    ENABLED_SIGNALS = [steam_ccu, slot_fit, competition]
+    ENABLED_SIGNALS = [steam_ccu, slot_fit, competition, upcoming_event]
 
     tasks = [analyze_single_game(game_data, cfg, twitch_api, steam_app_list, ENABLED_SIGNALS) for game_data in games_to_analyze]
     results = await asyncio.gather(*tasks)
