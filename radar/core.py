@@ -38,25 +38,22 @@ async def main():
     print("📡 Twitchから注目ゲームのリストを取得中...")
     games_to_analyze = []
     try:
-        # ★★★【アップグレード！】★★★
-        # 調査するゲーム件数をconfig.yamlから読み込む（なければデフォルトで200件）
+        # ★★★【最終確定版のロジック】★★★
+        # config.yamlから調査したい件数を取得
         target_count = cfg.get('analysis_target_count', 200)
         
-        # 1ページあたり100件で、必要なページ数だけ取得する、より正確な方法
-        cursor = None
-        while len(games_to_analyze) < target_count:
-            # 100件ずつAPIにリクエスト
-            async for game in twitch_api.get_top_games(after=cursor, first=100):
-                if game.name != 'Just Chatting':
-                    games_to_analyze.append(game)
-                if len(games_to_analyze) >= target_count:
-                    break
+        # Twitch APIに「1ページ100件で」とリクエストを出す
+        # async forが、自動で次のページを読み込みに行ってくれます
+        async for game in twitch_api.get_top_games(first=100):
+            # ゲーム以外のカテゴリを除外
+            if game.name != 'Just Chatting':
+                games_to_analyze.append(game)
             
-            # 次のページを取得するためのカーソルを取得
-            cursor = twitch_api.get_last_pagination()
-            if not cursor:
-                break # 次のページがなければ終了
-
+            # ★★★【最重要ポイント】★★★
+            # リストの件数が目標に達したら、ループを強制的にストップする
+            if len(games_to_analyze) >= target_count:
+                break
+        
         print(f"✅ {len(games_to_analyze)}件のゲームを分析対象とします。")
 
     except Exception as e:
