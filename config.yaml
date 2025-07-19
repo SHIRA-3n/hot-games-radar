@@ -32,6 +32,8 @@ weights:
   slot_fit: 15
   blue_ocean_bonus: 30
   upcoming_event_score: 50 # 未来のイベントのスコアを50倍して最終スコアに加算する
+  drops: 20                  # Twitch Dropsが有効な場合の加点
+  steam_news_update: 30      # Steamニュースにアプデ情報があった場合の加点
   
 
 penalties:

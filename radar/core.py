@@ -7,7 +7,7 @@ import requests
 from datetime import datetime, timezone
 from twitchAPI.twitch import Twitch
 import asyncio # 非同期処理に必要
-from .signals import steam_ccu, slot_fit, competition, upcoming_event
+from .signals import steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news
 
 # 作成した全ての分析モジュール（センサー）をインポートします
 from .signals import steam_ccu, slot_fit, competition
@@ -63,7 +63,7 @@ async def main():
     print("⚙️ 各ゲームのスコアを計算中...")
     scored_games = []
     
-    ENABLED_SIGNALS = [steam_ccu, slot_fit, competition, upcoming_event]
+    ENABLED_SIGNALS = [steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news]
 
     tasks = [analyze_single_game(game_data, cfg, twitch_api, steam_app_list, ENABLED_SIGNALS) for game_data in games_to_analyze]
     results = await asyncio.gather(*tasks)
@@ -88,8 +88,9 @@ async def main():
 
 
 async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, signal_modules):
-    """１つのゲームを分析し、成功なら結果を、失敗ならエラーメッセージを返す"""
-    game = {'id': game_data.id, 'name': game_data.name}
+    """１つのゲームを分析するための非同期関数"""
+    # dropsセンサーのために、元のgame_dataオブジェクトも渡す
+    game = {'id': game_data.id, 'name': game_data.name, 'game_data': game_data}
     error_messages = []
 
     appid = utils.get_steam_appid(game['name'], steam_app_list)
