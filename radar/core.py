@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from twitchAPI.twitch import Twitch
 import asyncio # 非同期処理に必要
 from .signals import steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news
+import pandas as pd 
 
 # 作成した全ての分析モジュール（センサー）をインポートします
 from .signals import steam_ccu, slot_fit, competition
@@ -68,6 +69,11 @@ async def main():
         print(f"❌ ゲームリストの取得に失敗しました: {e}"); return
 
     print("⚙️ 各ゲームのスコアを計算中...")
+    
+    # ★★★【最後の修正！】★★★
+    # どの専門家を分析に使うか、ここでリストを定義する
+    ENABLED_SIGNALS = [steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news]
+    
     tasks = []
     for game_data in games_to_analyze:
         # 専門家には、読み込み済みの台帳データを渡す
