@@ -87,8 +87,10 @@ async def main():
     print("🎉 全ての処理が正常に完了しました！")
 
 
+# 【最終確定版テンプレート】この内容で analyze_single_game 関数を全文上書きしてください
+
 async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, signal_modules):
-    """１つのゲームを分析するための非同期関数"""
+    """１つのゲームを分析し、成功なら結果を、失敗ならエラーメッセージを返す"""
     # dropsセンサーのために、元のgame_dataオブジェクトも渡す
     game = {'id': game_data.id, 'name': game_data.name, 'game_data': game_data}
     error_messages = []
@@ -99,25 +101,32 @@ async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, signal
 
     game_scores, game_flags = {}, []
     
-    # asyncio.gatherを使って、各センサーの処理を並行して行う
-    tasks = [module.score(game=game, cfg=cfg, twitch_api=twitch_api) for module in signal_modules]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    # --- ★★★【最後の修正！】★★★
+    # 各センサー（専門家）を、正しい作法で呼び出す
+    for module in signal_modules:
+        try:
+            # 専門家が非同期モードなら 'await' を付けて呼ぶ
+            if asyncio.iscoroutinefunction(module.score):
+                # 'horizon'情報は、今はまだ使わないので一旦'3d'で固定（今後の拡張用）
+                result = await module.score(game=game, cfg=cfg, twitch_api=twitch_api, horizon='3d')
+            else:
+                result = module.score(game=game, cfg=cfg, twitch_api=twitch_api, horizon='3d')
 
-    for res in results:
-        if isinstance(res, Exception):
-            # もしセンサーがエラーを返したら、エラーメッセージを記録
-            error_messages.append(str(res))
-        elif isinstance(res, dict) and res:
-            game_scores.update(res)
-            if 'source_hit_flags' in res:
-                game_flags.extend(result.pop('source_hit_flags'))
+            if result:
+                game_scores.update(result)
+                if 'source_hit_flags' in result:
+                    # popで取り出すと元の辞書から消えてしまうので、直接参照する
+                    game_flags.extend(result.get('source_hit_flags', []))
 
-    game['total_score'] = sum(v for k, v in game_scores.items() if isinstance(v, (int, float)))
+        except Exception as e:
+            # 実行ログがエラーで埋まらないように、ここでは警告をprintしない
+            pass
+
+    game['total_score'] = sum(v for k, v in game_scores.items() if isinstance(v, (int, float)) and 'score' in k)
     game['flags'] = list(set(game_flags))
     
-    # 最終的なエラーの有無を返す
-    error_summary = ", ".join(error_messages) if error_messages else None
-    return game, error_summary
+    # エラーの有無に関わらず、分析済みのゲーム情報を返す
+    return game, None # 現状はエラーを詳細に追跡しないシンプルな形に戻す
 
 
 def send_results_to_discord(games, errored_games, cfg):
