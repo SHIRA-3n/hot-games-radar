@@ -28,7 +28,7 @@ weights:
   free: 15
   steam_ccu_ratio: 10
   trends_jp_spike: 6
-  twitter_jp_spike: 6
+  twitter_jp_spike: 20
   slot_fit: 20
   blue_ocean_bonus: 25
   upcoming_event_score: 20 # 未来のイベントのスコアを50倍して最終スコアに加算する
