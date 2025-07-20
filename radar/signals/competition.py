@@ -17,7 +17,7 @@ async def score(game, cfg, twitch_api, **_):
     try:
         # ▼▼▼【修正点②】「回転寿司」のお寿司を、全部お皿に乗せる書き方▼▼▼
         # async for を使って、流れてくる配信データ(s)を、一つずつstreamsというリストに格納する
-        streams = [s async for s in twitch_api.get_streams(game_id=[game['id']], first=100)]
+        streams = [s async for s in twitch_api.get_streams(game_id=[game['id']], language='ja', first=100)]
 
     except Exception as e:
         print(f"⚠️ competition.pyでのAPIエラー: {e}")
