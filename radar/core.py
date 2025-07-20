@@ -47,20 +47,16 @@ async def main():
     print("📡 日本市場の注目ゲームを調査中...")
     games_to_analyze = []
     try:
-        # --- ★★★【日本市場特化＆1000件取得ロジック】★★★
+        # ★★★【亡霊を完全に排除した、最終ロジック】★★★
         target_stream_count = cfg.get('analysis_target_count', 1000)
         print(f"   - 日本語の人気配信 {target_stream_count}件を起点に調査します...")
         
+        # async forが、ライブラリの力で自動的にページを読み進めてくれます
         jp_streams = []
-        cursor = None
-        while len(jp_streams) < target_stream_count:
-            # 1ページあたり100件で、日本語配信を取得
-            async for stream in twitch_api.get_streams(after=cursor, language='ja', first=100):
-                jp_streams.append(stream)
-            
-            # 次のページを取得するための「合言葉」をAPIから受け取る
-            cursor = twitch_api.get_last_pagination()
-            if not cursor or len(jp_streams) >= target_stream_count:
+        async for stream in twitch_api.get_streams(language='ja', first=100):
+            jp_streams.append(stream)
+            # 取得した数が目標に達したら、ループを自分で止める
+            if len(jp_streams) >= target_stream_count:
                 break
         
         print(f"   - 実際に取得できた日本語配信: {len(jp_streams)}件")
