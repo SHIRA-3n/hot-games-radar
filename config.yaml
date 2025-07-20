@@ -23,7 +23,7 @@ stream_slots:
 
 # (以下、weights, penaltiesセクションは基本的にこのままでOK)
 weights:
-  viewers_per_ch: 2
+  viewers_per_ch: 0.5
   drops: 10
   free: 15
   steam_ccu_ratio: 10
@@ -37,7 +37,7 @@ weights:
   
 
 penalties:
-  top_share:    {threshold: 0.6, weight: 80}
+  top_share:    {threshold: 0.7, weight: 40}
   competitor_penalty: {threshold: 20, weight: 15}
   low_jp_ratio: {threshold: 0.05, weight: 25} # 日本語配信が5%未満なら、25点減点
 
