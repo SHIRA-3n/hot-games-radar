@@ -174,7 +174,7 @@ def send_results_to_discord(games, errored_games, cfg):
                 links.append(f"**[Steam]({f'https://store.steampowered.com/app/{game["steam_appid"]}'})**")
             
             # Twitchリンク：ゲーム名をURLセーフな形式に変換
-            twitch_category_name = requests.utils.quote(game['name'])
+            twitch_category_name = game['name'].lower().replace(' ', '-')
             links.append(f"**[Twitch]({f'https://www.twitch.tv/directory/category/{twitch_category_name}'})**")
             
             # Googleトレンドリンク：検索クエリを「ゲーム名 + ゲーム」に
