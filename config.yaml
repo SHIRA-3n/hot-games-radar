@@ -27,7 +27,7 @@ weights:
   drops: 10
   free: 15
   steam_ccu_ratio: 10
-  trends_jp_spike: 6
+  trends_jp_spike: 15
   twitter_jp_spike: 20
   slot_fit: 20
   blue_ocean_bonus: 25
@@ -38,7 +38,6 @@ weights:
 
 penalties:
   top_share:    {threshold: 0.6, weight: 80}
-  low_jp_ratio: {threshold: 0.05, weight: 15}
   competitor_penalty: {threshold: 20, weight: 15}
   low_jp_ratio: {threshold: 0.05, weight: 25} # 日本語配信が5%未満なら、25点減点
 
