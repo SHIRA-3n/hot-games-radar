@@ -41,7 +41,7 @@ async def score(game, cfg, twitch_api, **_):
             # 例: 1人あたり50人見ていれば、スコアに50が加わるイメージ
             # 重み(weight)は、その影響度を調整する「倍率」として使う
             vpc_score = viewers_per_channel * vpc_weight
-            final_scores["viewers_per_ch_score"] = vpc_score
+            final_scores["viewers_per_ch_score"] = min(vpc_score, 50)
             final_flags.append(f"👥VPC: {viewers_per_channel:.1f}")
 
         # --- 分析②：トップ配信者への人気集中度 (Top Share) ---
