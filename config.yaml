@@ -23,23 +23,22 @@ stream_slots:
 
 # (以下、weights, penaltiesセクションは基本的にこのままでOK)
 weights:
-  viewers_per_ch: 0.5
-  drops: 15
+  viewers_per_ch: 0.2
   free: 15
   steam_ccu_ratio: 8
   trends_jp_spike: 10
   twitter_jp_spike: 15
-  slot_fit: 25
-  blue_ocean_bonus: 30
-  upcoming_event_score: 30 # 未来のイベントのスコアを50倍して最終スコアに加算する
+  slot_fit: 30
+  blue_ocean_bonus: 25
+  upcoming_event_score: 25 # 未来のイベントのスコアを50倍して最終スコアに加算する
   drops: 20                  # Twitch Dropsが有効な場合の加点
-  steam_news_update: 20      # Steamニュースにアプデ情報があった場合の加点
+  steam_news_update: 15      # Steamニュースにアプデ情報があった場合の加点
   
 
 penalties:
-  top_share:    {threshold: 0.6, weight: 50}
+  top_share:    {threshold: 0.7, weight: 80}
   competitor_penalty: {threshold: 20, weight: 20}
-  low_jp_ratio: {threshold: 0.1, weight: 30} # 日本語配信が5%未満なら、25点減点
+  low_jp_ratio: {threshold: 0.05, weight: 50} 
 
 notify:
   webhooks:
