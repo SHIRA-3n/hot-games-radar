@@ -165,33 +165,31 @@ def send_results_to_discord(games, errored_games, cfg):
             # --- ★★★【デザイン刷新の心臓部】★★★
             
             # 1. タイトル行を組み立てる (ゲーム名 + スコア + 主要タグ)
-            #    表示するタグを2つまでに絞るなど、調整も可能
             tags_for_title = " ".join([f"`{flag}`" for flag in game['flags'][:2]])
             field_name = f"{'🥇🥈🥉'[notified_count] if notified_count < 3 else '🔹'} {notified_count + 1}位: {game['name']} (スコア: {game['total_score']:.0f}) {tags_for_title}"
 
             # 2. 本文行（リンク集）を組み立てる
             links = []
-            # Steamリンク
             if 'steam_appid' in game:
                 links.append(f"**[Steam]({f'https://store.steampowered.com/app/{game["steam_appid"]}'})**")
-            # Twitchリンク
-            # ゲーム名をURLエンコードして、正しいTwitchカテゴリURLを作成
+            
+            # Twitchリンク：ゲーム名をURLセーフな形式に変換
             twitch_category_name = requests.utils.quote(game['name'])
             links.append(f"**[Twitch]({f'https://www.twitch.tv/directory/category/{twitch_category_name}'})**")
-            # Googleトレンドリンク
+            
+            # Googleトレンドリンク：検索クエリを「ゲーム名 + ゲーム」に
             google_trend_query = requests.utils.quote(f"{game['name']} ゲーム")
             links.append(f"**[Googleトレンド]({f'https://trends.google.com/trends/explore?q={google_trend_query}&geo=JP'})**")
             
-            # リンクを " | " で連結
-            field_value = " | ".join(links)
+            link_string = " | ".join(links)
             
-            embed["fields"].append({
-                "name": field_name,
-                "value": f"🔗 {field_value}" # 先頭にリンクアイコンを追加
-            })
+            # 3. 本文に区切り線を追加
+            field_value = f"🔗 {link_string}\n──────────"
+            
+            embed["fields"].append({ "name": field_name, "value": field_value })
             notified_count += 1
 
-    # エラー報告部分（変更なし）
+    # エラー報告部分
     if cfg.get('notification_include_errors', True) and errored_games:
         error_list_str = "\n".join([f"- {g['name']}" for g in errored_games[:5]])
         embed["fields"].append({ "name": "⚠️ 一部センサーでエラーが検出されたゲーム", "value": error_list_str })

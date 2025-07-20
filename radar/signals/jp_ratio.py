@@ -38,7 +38,7 @@ async def score(game, cfg, twitch_api, **_):
         # 割合が設定した最低ライン(threshold)を下回っていたら、ペナルティを課す
         if jp_ratio < threshold:
             # スコアはマイナス値で返す
-            return {"jp_ratio_penalty": -weight, "source_hit_flags": [f"🇯🇵JP比率低い({jp_ratio:.0%})"]}
+            return {"jp_ratio_penalty": -weight, "source_hit_flags": [f"🇯🇵日本語比率: {jp_ratio:.0%}"]}
             
     except Exception as e:
         print(f"⚠️ jp_ratio.pyでのAPIエラー: {e}")

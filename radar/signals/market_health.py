@@ -61,7 +61,7 @@ async def score(game, cfg, twitch_api, **_):
             # 集中度がしきい値(threshold)を超えていたら、ペナルティ
             if top_share_ratio > threshold:
                 final_scores["top_share_penalty"] = -weight
-                final_flags.append(f"쏠人気集中({top_share_ratio:.0%})")
+                final_flags.append(f"🎯人気集中({top_share_ratio:.0%})")
         
         if final_scores:
             return {**final_scores, "source_hit_flags": final_flags}
