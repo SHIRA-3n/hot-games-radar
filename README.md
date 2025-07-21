@@ -43,7 +43,7 @@ export DISCORD_WEBHOOK_URL_30D="discord_webhook_for_30_day_notifications"
 channel_profile:
   avg_viewers: 10  # あなたの配信の平均視聴者数
 
-stream_slots:            
+stream_slots:
   mon: ["24-27"]  # あなたの配信スケジュール（24時間形式）
   tue: ["24-27"]
   # ... 他の曜日も同様に設定
@@ -66,7 +66,7 @@ python3 run.py
 各シグナルモジュール（`radar/signals/`）が独立してゲームの異なる側面を分析：
 
 - **competition.py**: 日本のストリーマー競合分析
-- **google_trends.py**: Google検索トレンド分析  
+- **google_trends.py**: Google検索トレンド分析
 - **steam_ccu.py**: Steam同時接続ユーザー追跡
 - **twitch_drops.py**: Twitch Dropsキャンペーン検出
 - **jp_ratio.py**: 日本語オーディエンス浸透度分析
@@ -100,10 +100,6 @@ python3 run.py
 - **外部API**: Twitch API、Steam API、Google Trends、Twitter API
 - **文字列マッチング**: rapidfuzzを使用したファジーマッチング
 - **認証**: OAuth2対応
-
-## ライセンス
-
-このプロジェクトはオープンソースです。
 
 ---
 
