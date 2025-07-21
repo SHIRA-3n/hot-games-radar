@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from twitchAPI.twitch import Twitch
 import asyncio
 import sys
+import time
 
 # --- 1. インポートセクション ---
 from .signals import steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news, jp_ratio, twitter, google_trends, market_health
@@ -142,21 +143,46 @@ async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events
 
 # --- 5. 通知担当関数 ---
 def send_results_to_discord(games, errored_games, cfg, horizon):
+    """
+    Discordに分析結果を送信する。
+    Embedのサイズ制限を考慮し、10件ごとに分割して送信する。
+    """
     webhook_secret_name = f"DISCORD_WEBHOOK_URL_{horizon.upper()}"
     webhook_url = os.environ.get(webhook_secret_name)
     
     if not webhook_url:
         print(f"⚠️ Webhook URL ({webhook_secret_name}) が設定されていません。"); return
 
-    embed = { "title": f"📈 Hot Games Radar ({horizon}) - 分析レポート", "color": 5814783, "fields": [] }
     score_threshold = cfg.get('notification_score_threshold', 10)
-    game_count = cfg.get('notification_game_count', 10)
-    notified_count = 0
-    for game in games:
-        if notified_count >= game_count: break
-        if game.get('total_score', 0) >= score_threshold:
+    game_count = cfg.get('notification_game_count', 20)
+    
+    # --- ★★★【分割送信機能の心臓部】★★★ ---
+    
+    # 1. まず、通知対象となるゲームのリストを作成
+    games_to_notify = [g for g in games if g.get('total_score', 0) >= score_threshold][:game_count]
+    
+    # 2. リストを、10件ずつの小さな「塊（チャンク）」に分割する
+    chunk_size = 10
+    chunks = [games_to_notify[i:i + chunk_size] for i in range(0, len(games_to_notify), chunk_size)]
+    
+    total_notified_count = 0
+
+    # 3. 各チャンク（10件ずつのリスト）ごとに、Embedを作成して送信する
+    for i, chunk in enumerate(chunks):
+        
+        # 2通目以降のタイトルを少し変える
+        report_title = f"📈 Hot Games Radar ({horizon}) - 分析レポート"
+        if len(chunks) > 1:
+            report_title += f" ({i+1}/{len(chunks)})"
+
+        embed = { "title": report_title, "color": 5814783, "fields": [] }
+
+        for game in chunk:
+            # game_countは全体の上限、notified_countは現在のEmbedの件数を数える
+            current_rank = total_notified_count + 1
+            
             tags_for_title = " ".join([f"`{flag}`" for flag in game['flags'][:2]])
-            field_name = f"{'🥇🥈🥉'[notified_count] if notified_count < 3 else '🔹'} {notified_count + 1}位: {game['name']} (スコア: {game.get('total_score', 0):.0f}) {tags_for_title}"
+            field_name = f"{'🥇🥈🥉'[current_rank-1] if current_rank <= 3 else '🔹'} {current_rank}位: {game['name']} (スコア: {game.get('total_score', 0):.0f}) {tags_for_title}"
             
             links = []
             if 'steam_appid' in game:
@@ -169,18 +195,24 @@ def send_results_to_discord(games, errored_games, cfg, horizon):
             
             field_value = f"🔗 {link_string}\n──────────"
             embed["fields"].append({ "name": field_name, "value": field_value })
-            notified_count += 1
-            
-    if cfg.get('notification_include_errors', True) and errored_games:
-        error_list_str = "\n".join([f"- {g['name']}" for g in errored_games[:5]])
-        embed["fields"].append({ "name": "⚠️ 一部センサーでエラーが検出されたゲーム", "value": error_list_str })
+            total_notified_count += 1
 
-    if not embed["fields"]:
-        print("✅ 通知対象の注目ゲームはありませんでした。"); return
+        # エラー報告は、最後のレポートにだけ付ける
+        if i == len(chunks) - 1 and cfg.get('notification_include_errors', True) and errored_games:
+            error_list_str = "\n".join([f"- {g['name']}" for g in errored_games[:5]])
+            embed["fields"].append({ "name": "⚠️ 一部センサーでエラーが検出されたゲーム", "value": error_list_str })
 
-    try:
-        response = requests.post(webhook_url, json={"embeds": [embed]})
-        response.raise_for_status()
-        print(f"✅ Discordへ{notified_count}件の注目ゲームと、{len(errored_games)}件のエラー報告を通知しました。")
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Discordへの通知に失敗しました: {e}")
+        if not embed["fields"]:
+            continue # 送信するフィールドがなければ、次のチャンクへ
+
+        try:
+            response = requests.post(webhook_url, json={"embeds": [embed]})
+            response.raise_for_status()
+            print(f"✅ Discordへレポート({i+1}/{len(chunks)})の通知に成功しました。")
+            # APIのレートリミットを避けるため、少し待機
+            time.sleep(1) 
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Discordへの通知に失敗しました: {e}")
+
+    if total_notified_count == 0:
+        print("✅ 通知対象の注目ゲームはありませんでした。")
