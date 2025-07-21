@@ -33,6 +33,7 @@ weights:
   upcoming_event_score: 25 # 未来のイベントのスコアを50倍して最終スコアに加算する
   drops: 20                  # Twitch Dropsが有効な場合の加点
   steam_news_update: 15      # Steamニュースにアプデ情報があった場合の加点
+  high_jp_ratio_bonus: {threshold: 0.3, weight: 20} # 日本語比率が30%を超えたら、20点加算
   
 
 penalties:

@@ -1,5 +1,3 @@
-# 【真の最終確定版】この内容で、あなたの radar/core.py を全文上書きしてください
-
 import os
 import yaml
 import json
@@ -8,20 +6,18 @@ import requests
 from datetime import datetime, timezone
 from twitchAPI.twitch import Twitch
 import asyncio
+import sys # コマンドライン引数を読み取るために追加
 
-# --- 1. インポートセクションの整理 ---
-# 全ての専門家（センサー）と、必要な道具（ユーティリティ）を、ここで一括でインポートします
 from .signals import steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news, jp_ratio, twitter, google_trends, market_health
 from . import utils
 
-# --- 2. 設定ファイルを読み込む関数 ---
 def load_config():
     with open('config.yaml', 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
-# --- 3. メインの司令塔関数 ---
-async def main():
-    print("🚀 Hot Games Radar PRO - 起動します...")
+# --- ★★★【改善①】main関数が、外部からの指令(horizon)を受け取れるようにする★★★
+async def main(horizon='3d'):
+    print(f"🚀 Hot Games Radar PRO ({horizon}モード) - 起動します...")
     cfg = load_config()
 
     try:
@@ -31,7 +27,6 @@ async def main():
     except Exception as e:
         print(f"❌ Twitch APIの初期化または認証に失敗しました: {e}"); return
 
-    # 最初に1回だけ、全ての「台帳」を読み込んでおく
     utils.update_steam_app_list()
     steam_app_list, events_df = {}, None
     try:
@@ -47,17 +42,10 @@ async def main():
     print("📡 日本市場の注目ゲームを調査中...")
     games_to_analyze = []
     try:
-        # ★★★【亡霊を完全に排除した、最終ロジック】★★★
         target_stream_count = cfg.get('analysis_target_count', 1000)
         print(f"   - 日本語の人気配信 {target_stream_count}件を起点に調査します...")
         
-        # async forが、ライブラリの力で自動的にページを読み進めてくれます
-        jp_streams = []
-        async for stream in twitch_api.get_streams(language='ja', first=100):
-            jp_streams.append(stream)
-            # 取得した数が目標に達したら、ループを自分で止める
-            if len(jp_streams) >= target_stream_count:
-                break
+        jp_streams = [s async for s in twitch_api.get_streams(language='ja', first=100) if len(jp_streams) < target_stream_count]
         
         print(f"   - 実際に取得できた日本語配信: {len(jp_streams)}件")
         game_ids = list(set([s.game_id for s in jp_streams if s.game_id]))
@@ -80,8 +68,9 @@ async def main():
     ENABLED_SIGNALS = [steam_ccu, slot_fit, competition, upcoming_event, twitch_drops, steam_news, jp_ratio, twitter, google_trends, market_health]
     
     tasks = [
+        # ★★★【改善②】現場監督に、現在の分析モード(horizon)を伝える★★★
         analyze_single_game(
-            game_data, cfg, twitch_api, steam_app_list, events_df, ENABLED_SIGNALS
+            game_data, cfg, twitch_api, steam_app_list, events_df, ENABLED_SIGNALS, horizon
         ) 
         for game_data in games_to_analyze
     ]
@@ -98,11 +87,11 @@ async def main():
     print("✅ スコア計算完了！")
 
     print("📨 結果をDiscordに送信中...")
-    send_results_to_discord(scored_games, errored_games, cfg)
+    # ★★★【改善③】通知担当にも、現在の分析モード(horizon)を伝える★★★
+    send_results_to_discord(scored_games, errored_games, cfg, horizon)
     print("🎉 全ての処理が正常に完了しました！")
 
-# --- 4. 現場監督関数 ---
-async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events_df, signal_modules):
+async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events_df, signal_modules, horizon):
     """１つのゲームを分析し、成功なら結果を、失敗ならエラーメッセージを返す"""
     game = {'id': game_data.id, 'name': game_data.name, 'game_data': game_data}
     error_messages = []
@@ -115,37 +104,44 @@ async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events
     
     for module in signal_modules:
         try:
-            # --- ★★★【引数渡しを修正】★★★
-            # 各専門家に、必要な情報を全て渡す
+            # 各専門家に、現在の分析モード(horizon)を伝える
             if asyncio.iscoroutinefunction(module.score):
-                result = await module.score(game=game, cfg=cfg, twitch_api=twitch_api, events_df=events_df, horizon='3d')
+                result = await module.score(game=game, cfg=cfg, twitch_api=twitch_api, events_df=events_df, horizon=horizon)
             else:
-                result = module.score(game=game, cfg=cfg, twitch_api=twitch_api, events_df=events_df, horizon='3d')
+                result = module.score(game=game, cfg=cfg, twitch_api=twitch_api, events_df=events_df, horizon=horizon)
             
             if result:
-                # 'score'を含むキーだけをスコアとして合算対象にする
                 for key, value in result.items():
-                    if 'score' in key:
-                        game_scores[key] = value
+                    if 'score' in key: game_scores[key] = value
                 if 'source_hit_flags' in result:
                     game_flags.extend(result.get('source_hit_flags', []))
         except Exception as e:
             pass
 
-    game['total_score'] = sum(game_scores.values())
+    # ★★★【改善④】スコアの重み付けを、現在の分析モードに応じて変更★★★
+    current_weights = cfg.get('weights', {}).get(horizon, {})
+    total_score = 0
+    for key, value in game_scores.items():
+        # config.yamlの重み付けを「倍率」として適用
+        weight_multiplier = current_weights.get(key.replace('_score', ''), 1)
+        total_score += value * weight_multiplier
+
+    game['total_score'] = total_score
     game['flags'] = list(set(game_flags))
     
     error_summary = ", ".join(error_messages) if error_messages else None
     return game, error_summary
 
-# --- 5. 通知担当関数 ---
-def send_results_to_discord(games, errored_games, cfg):
+def send_results_to_discord(games, errored_games, cfg, horizon):
     """Discordに分析結果を送信する"""
-    webhook_url = os.environ.get('DISCORD_WEBHOOK_URL_3D')
+    # 現在の分析モードに応じて、正しいWebhook URLを選択
+    webhook_secret_name = f"DISCORD_WEBHOOK_URL_{horizon.upper()}"
+    webhook_url = os.environ.get(webhook_secret_name)
+    
     if not webhook_url:
-        print("⚠️ Discord Webhook URLが設定されていません。"); return
+        print(f"⚠️ Webhook URL ({webhook_secret_name}) が設定されていません。"); return
 
-    embed = { "title": "📈 Hot Games Radar - 分析レポート", "color": 5814783, "fields": [] }
+    embed = { "title": f"📈 Hot Games Radar ({horizon}) - 分析レポート", "color": 5814783, "fields": [] }
     score_threshold = cfg.get('notification_score_threshold', 10)
     game_count = cfg.get('notification_game_count', 10)
     notified_count = 0
