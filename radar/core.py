@@ -78,7 +78,7 @@ async def main(horizon='3d'):
     
     tasks = [
         analyze_single_game(
-            game_data, cfg, twitch_api, steam_app_list, events_df, ENABLED_SIGNALS, horizon
+            game_data, cfg, twitch_api, steam_app_list, events_df, ENABLED_SIGNALS, jp_streams, horizon
         ) 
         for game_data in games_to_analyze
     ]
@@ -99,7 +99,8 @@ async def main(horizon='3d'):
     print("🎉 全ての処理が正常に完了しました！")
 
 # --- 4. 現場監督関数 ---
-async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events_df, signal_modules, horizon):
+async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events_df, signal_modules, jp_streams, horizon):
+    """１つのゲームを分析し、成功なら結果を、失敗ならエラーメッセージを返す"""
     game = {'id': game_data.id, 'name': game_data.name, 'game_data': game_data}
     error_messages = []
 
@@ -111,10 +112,13 @@ async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events
     
     for module in signal_modules:
         try:
+            # ★★★【あなたの指摘を反映！】★★★
+            # 各専門家に、現在の分析モード(horizon)を、正しく伝える
             if asyncio.iscoroutinefunction(module.score):
-                result = await module.score(game=game, cfg=cfg, twitch_api=twitch_api, events_df=events_df, horizon=horizon)
+                result = await module.score(game=game, cfg=cfg, twitch_api=twitch_api, events_df=events_df, jp_streams=jp_streams, horizon=horizon)
             else:
-                result = module.score(game=game, cfg=cfg, twitch_api=twitch_api, events_df=events_df, horizon=horizon)
+                result = module.score(game=game, cfg=cfg, twitch_api=twitch_api, events_df=events_df, jp_streams=jp_streams, horizon=horizon)
+            
             if result:
                 for key, value in result.items():
                     if 'score' in key: game_scores[key] = value
@@ -124,7 +128,7 @@ async def analyze_single_game(game_data, cfg, twitch_api, steam_app_list, events
             pass
 
     # 'weights'の取得方法を、3チャンネル対応の構造に合わせる
-    current_weights = cfg.get('weights', {}).get(horizon, cfg.get('weights', {})) # horizonがなければ全体設定を見る
+    current_weights = cfg.get('weights', {}).get(horizon, cfg.get('weights', {}))
     total_score = 0
     for key, value in game_scores.items():
         weight_multiplier = current_weights.get(key.replace('_score', ''), 1)
